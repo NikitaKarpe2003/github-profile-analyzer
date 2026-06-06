@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>GitHub Analyzer Dashboard</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background:#0d1117; color:#e6edf3; min-height:100vh; }
+    header { background:#161b22; border-bottom:1px solid #30363d; padding:16px 32px; display:flex; align-items:center; gap:12px; }
+    header h1 { font-size:20px; font-weight:600; }
+    header span { font-size:24px; }
+    .container { max-width:1100px; margin:0 auto; padding:32px 24px; }
+    .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:32px; }
+    .stat-card { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:20px; }
+    .stat-card .label { font-size:12px; color:#8b949e; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
+    .stat-card .value { font-size:28px; font-weight:700; color:#58a6ff; }
+    .section { background:#161b22; border:1px solid #30363d; border-radius:10px; padding:24px; margin-bottom:24px; }
+    .section h2 { font-size:16px; font-weight:600; margin-bottom:20px; color:#e6edf3; }
+    .analyze-row { display:flex; gap:10px; margin-bottom:24px; }
+    .analyze-row input { flex:1; background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:10px 14px; color:#e6edf3; font-size:14px; outline:none; }
+    .analyze-row input:focus { border-color:#58a6ff; }
+    .btn-green { background:#238636; color:#fff; border:none; border-radius:8px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer; white-space:nowrap; }
+    .btn-green:hover { background:#2ea043; }
+    .btn-green:disabled { opacity:.5; cursor:not-allowed; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { text-align:left; padding:8px 12px; color:#8b949e; font-weight:500; border-bottom:1px solid #30363d; }
+    td { padding:10px 12px; border-bottom:1px solid #21262d; vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:#1c2128; }
+    .avatar { width:32px; height:32px; border-radius:50%; }
+    .score-bar { height:6px; border-radius:3px; background:#21262d; margin-top:4px; }
+    .score-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,#238636,#58a6ff); }
+    .lang-pill { display:inline-block; padding:2px 8px; border-radius:12px; font-size:11px; background:#21262d; color:#8b949e; margin:2px; }
+    .empty { text-align:center; padding:40px; color:#8b949e; font-size:14px; }
+    .toast { position:fixed; bottom:24px; right:24px; background:#238636; color:#fff; padding:12px 20px; border-radius:8px; font-size:14px; font-weight:500; display:none; z-index:999; }
+    .toast.error { background:#da3633; }
+    .search-row { display:flex; gap:10px; margin-bottom:16px; align-items:center; flex-wrap:wrap; }
+    .search-row input { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:8px 12px; color:#e6edf3; font-size:13px; outline:none; width:200px; }
+    .search-row select { background:#0d1117; border:1px solid #30363d; border-radius:8px; padding:8px 12px; color:#e6edf3; font-size:13px; outline:none; }
+    a { color:#58a6ff; text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    .delete-btn { background:transparent; border:1px solid #da3633; color:#da3633; border-radius:6px; padding:3px 8px; font-size:11px; cursor:pointer; }
+    .delete-btn:hover { background:#da3633; color:#fff; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>🐙</span>
+  <h1>GitHub Profile Analyzer — Dashboard</h1>
+</header>
+
+<div class="container">
+
+  <!-- Analyze Box -->
+  <div class="analyze-row">
+    <input id="usernameInput" type="text" placeholder="Enter GitHub username (e.g. torvalds, gaearon, sindresorhus)" />
+    <button class="btn-green" id="analyzeBtn" onclick="analyzeUser()">🔍 Analyze Profile</button>
+  </div>
+
+  <!-- Stats Cards -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="label">Total Profiles</div>
+      <div class="value" id="s-total">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Avg Activity Score</div>
+      <div class="value" id="s-score">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Total Followers</div>
+      <div class="value" id="s-followers">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">Repos Tracked</div>
+      <div class="value" id="s-repos">—</div>
+    </div>
+  </div>
+
+  <!-- Profiles Table -->
+  <div class="section">
+    <h2>📋 Analyzed Profiles</h2>
+    <div class="search-row">
+      <input id="searchInput" placeholder="🔎 Search username..." oninput="loadProfiles()" />
+      <select id="sortSelect" onchange="loadProfiles()">
+        <option value="last_analyzed_at">Recently Analyzed</option>
+        <option value="activity_score">Activity Score</option>
+        <option value="followers">Followers</option>
+        <option value="total_stars">Total Stars</option>
+        <option value="public_repos">Public Repos</option>
+      </select>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>User</th>
+          <th>Followers</th>
+          <th>Repos</th>
+          <th>Stars</th>
+          <th>Activity Score</th>
+          <th>Top Languages</th>
+          <th>Analyzed</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="profilesTable">
+        <tr><td colspan="8" class="empty">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = '/api';
+
+const showToast = (msg, isError = false) => {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  t.style.display = 'block';
+  setTimeout(() => t.style.display = 'none', 3500);
+};
+
+const analyzeUser = async () => {
+  const username = document.getElementById('usernameInput').value.trim();
+  if (!username) return showToast('Please enter a username!', true);
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Analyzing...';
+  try {
+    const res  = await fetch(`${API}/analyze/${username}`, { method: 'POST' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    showToast('✅ ' + data.message);
+    document.getElementById('usernameInput').value = '';
+    loadProfiles();
+    loadStats();
+  } catch (e) {
+    showToast('❌ ' + e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 Analyze Profile';
+  }
+};
+
+const deleteProfile = async (username) => {
+  if (!confirm(`Delete profile "${username}"?`)) return;
+  try {
+    const res  = await fetch(`${API}/profiles/${username}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!data.success) throw new Error(data.message);
+    showToast(`🗑️ "${username}" deleted`);
+    loadProfiles();
+    loadStats();
+  } catch (e) {
+    showToast('❌ ' + e.message, true);
+  }
+};
+
+const loadStats = async () => {
+  try {
+    const res  = await fetch(`${API}/stats`);
+    const data = await res.json();
+    if (!data.success) return;
+    const s = data.data.summary;
+    document.getElementById('s-total').textContent     = s.total_profiles      || 0;
+    document.getElementById('s-score').textContent     = s.avg_activity_score  || 0;
+    document.getElementById('s-followers').textContent = Number(s.total_followers   || 0).toLocaleString();
+    document.getElementById('s-repos').textContent     = Number(s.total_repos_tracked || 0).toLocaleString();
+  } catch (e) { console.error('Stats error:', e); }
+};
+
+const loadProfiles = async () => {
+  const search = document.getElementById('searchInput').value;
+  const sort   = document.getElementById('sortSelect').value;
+  try {
+    const res  = await fetch(`${API}/profiles?sort=${sort}&order=DESC&search=${encodeURIComponent(search)}&limit=50`);
+    const data = await res.json();
+    const tbody = document.getElementById('profilesTable');
+
+    if (!data.success || !data.data.length) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No profiles yet. Enter a GitHub username above and click Analyze!</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = data.data.map(p => {
+      const langs = (p.top_languages || []).slice(0, 3)
+        .map(l => `<span class="lang-pill">${l.language}</span>`).join('');
+      const scoreWidth = Math.min(parseFloat(p.activity_score), 100);
+      const date = new Date(p.last_analyzed_at).toLocaleDateString('en-IN');
+      return `<tr>
+        <td>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <img class="avatar" src="${p.avatar_url}" alt="${p.username}" />
+            <div>
+              <a href="${p.profile_url}" target="_blank">${p.username}</a>
+              <div style="font-size:11px;color:#8b949e;">${p.name || ''}</div>
+            </div>
+          </div>
+        </td>
+        <td>${Number(p.followers || 0).toLocaleString()}</td>
+        <td>${p.public_repos}</td>
+        <td>⭐ ${Number(p.total_stars || 0).toLocaleString()}</td>
+        <td>
+          <div style="font-weight:600;color:#58a6ff;">${p.activity_score}</div>
+          <div class="score-bar"><div class="score-fill" style="width:${scoreWidth}%"></div></div>
+        </td>
+        <td>${langs || '<span style="color:#8b949e">—</span>'}</td>
+        <td style="color:#8b949e;font-size:12px;">${date}</td>
+        <td><button class="delete-btn" onclick="deleteProfile('${p.username}')">🗑️</button></td>
+      </tr>`;
+    }).join('');
+  } catch (e) { console.error('Profiles error:', e); }
+};
+
+// Enter key support
+document.getElementById('usernameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyzeUser();
+});
+
+// Load on start
+loadStats();
+loadProfiles();
+</script>
+</body>
+</html>
