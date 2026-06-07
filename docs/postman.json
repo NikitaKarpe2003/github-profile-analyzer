@@ -1,0 +1,35 @@
+
+{
+  "info": {
+    "name": "GitHub Profile Analyzer API",
+    "description": "Complete API collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{ "key": "base_url", "value": "https://github-profile-analyzer-5gnb.onrender.com/api" }],
+  "item": [
+    {
+      "name": "Analyze Profile",
+      "request": { "method": "POST", "url": "{{base_url}}/analyze/torvalds" }
+    },
+    {
+      "name": "Get All Profiles",
+      "request": { "method": "GET", "url": "{{base_url}}/profiles" }
+    },
+    {
+      "name": "Get Single Profile",
+      "request": { "method": "GET", "url": "{{base_url}}/profiles/torvalds" }
+    },
+    {
+      "name": "Delete Profile",
+      "request": { "method": "DELETE", "url": "{{base_url}}/profiles/torvalds" }
+    },
+    {
+      "name": "Get Stats",
+      "request": { "method": "GET", "url": "{{base_url}}/stats" }
+    },
+    {
+      "name": "Compare Profiles",
+      "request": { "method": "GET", "url": "{{base_url}}/compare?a=torvalds&b=gaearon" }
+    }
+  ]
+}
